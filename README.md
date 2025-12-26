@@ -1,397 +1,545 @@
 <details>
 <summary>ENG (English Version)</summary>
 
-# MLB Game Prediction Data Collection
+# Web Scraping and Data Collection Techniques
 
-Web application for MLB game prediction through real-time pitcher and batter statistics from Fangraphs.
+## 1. Overview of Web Scraping
 
-## Project Overview
+Web scraping is a technique for extracting data from websites and converting unstructured web data into structured formats. It involves automated collection of information from web pages using various tools and libraries.
 
-Platform that automatically collects statistics from Fangraphs via web scraping, stores data in SQLite, and provides an interactive web interface for comparing game schedules and player statistics.
+### Key Concepts
 
-## Key Features
+**Web Crawling vs. Web Scraping:**
+- Web Crawling: Systematically visits all links on a website, builds an index, and stores data in a database
+- Web Scraping: Extracts specific information from web pages, focuses on data extraction from targeted sources
 
-### Data Collection
-- Automatic collection of 15 category statistics from Fangraphs
-  - Starting pitcher base stats, High/Medium/Low Leverage situation analysis, batting performance
-- Cloudflare bot detection bypass technology
-- Automatic database storage after scraping
+**Popular Tools and Libraries:**
+- Selenium: Browser automation for JavaScript-heavy websites
+- BeautifulSoup: HTML/XML parsing for static content
+- Requests: Lightweight HTTP library for fetching web pages
+- Scrapy: Full-featured web scraping framework
+- Octoparse, HTTrack, Cytoek WebCopy: GUI-based crawling tools
 
-### Data Management
-- Centralized SQLite database storage
-- 3-tier caching system (DB → file → scraping) to minimize unnecessary scraping
-- Systematic management with date-based directory structure
-- Automatic duplicate prevention
+## 2. Naver News Scraping with Selenium
 
-### Game Analysis
-- MLB game schedule display by date
-- Away/home team starting pitcher selection and statistics lookup
-- Pitcher performance analysis by High/Medium/Low Leverage situations
-- Team batting statistics and RISP (Runners in Scoring Position) analysis
-- Display of pitchers with 2+ games in last 2 days
+Purpose: Collect news articles from Naver News search results
 
-### Data Visualization
-- Interactive comparison charts using Chart.js
-- Automatic chart display on table header/cell hover
-- Real-time away vs home team statistics comparison with bar graphs
+### 2.1 Setup and Dependencies
 
-## Technology Stack
-
-| Category | Technology |
-|----------|-----------|
-| Backend | Python 3.12, Flask, SQLite3 |
-| Scraping | Selenium, undetected_chromedriver, BeautifulSoup4 |
-| Frontend | HTML/CSS, JavaScript, Chart.js |
-
-## Project Structure
-
-```
-Web_Scraping_Project_MLB/
-├── back/                          # Backend
-│   ├── app.py                     # Flask main server
-│   ├── load_json_to_db.py         # DB data import script
-│   ├── fangraphs_data.db          # SQLite database
-│   └── fangraphs_scraper/         # 15 scrapers
-│       ├── fangraphs_scraper1.py
-│       ├── fangraphs_scraper2.py
-│       └── ...
-│
-└── front/                         # Frontend
-    ├── MLB_Prediction.html        # Main page
-    ├── MLB_Prediction.css         # Stylesheet
-    ├── MLB_Frontend.js            # Main JavaScript logic
-    ├── MLB_Schedule.js            # Game schedule data
-    └── MLB_Starters.js            # Team player information
+```python
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
+import csv
 ```
 
-## Installation and Execution
+### 2.2 Key Functions
 
-### Prerequisites
-- Python 3.12
-- Chrome browser (for Selenium WebDriver)
-
-### Step 1: Clone Repository and Install Packages
-
-```bash
-git clone https://github.com/LutetiumCalciumLee/Web_Scraping_Project_MLB.git
-cd Web_Scraping_Project_MLB
-pip install flask flask-cors selenium undetected-chromedriver beautifulsoup4
+**Page Down Navigation:**
+```python
+def pagedown(num, body):
+    driver.findElement(By.CSS_SELECTOR, body).click()
+    for i in range(num):
+        body.sendKeys(Keys.PAGEDOWN)
+        time.sleep(3)
 ```
 
-### Step 2: Run Backend Server
+### 2.3 Main Scraping Workflow
 
-```bash
-cd back
-python app.py
+```python
+url = "https://www.naver.com"
+driver = webdriver.Chrome()
+driver.get(url)
+time.sleep(3)
+driver.implicitly_wait(10)
+
+# Find search box and enter query
+searchbox = driver.findElement(By.CSS_SELECTOR, "input[query]")
+searchbox.sendKeys(query)
+searchbox.sendKeys(Keys.RETURN)
+driver.implicitly_wait(10)
+
+# Click on News tab
+driver.findElement(By.LINK_TEXT, "News").click()
+
+# Handle "More Results" button
+while True:
+    btn = driver.findElement(By.LINK_TEXT, "More Results")
+    if btn.isDisplayed():
+        btn.click()
+        driver.implicitly_wait(10)
+        time.sleep(3)
+        break
+    else:
+        driver.findElement(By.LINK_TEXT, "Next Page").click()
+
+# Page down for loading more content
+pagedown(100)
+
+# Extract news data
+newstitles = driver.findElements(By.CSS_SELECTOR, ".fender-ui228e3bd1.SR2LrlI9g02spd3asYd0")
+newspress = driver.findElements(By.CSS_SELECTOR, ".fender-ui228e3bd1.CuEBGQMQA1RcBJH6fbf")
+newsdate = driver.findElements(By.XPATH, "//div[@class='sds-comps-vertical-layout sds-comps-full-layout zc470m0U4oRqtEfZ3YqXd']//div[1]//div[1]//div[2]//span[2]//div//span")
+newsdes = driver.findElements(By.CSS_SELECTOR, ".fender-ui228e3bd1.UCEthQP80sQ2n8CkLMc8")
+
+# Save to CSV
+with open('filename.csv', 'w', encoding='utf-8-sig', newline='') as f:
+    writer = csv.writer(f)
+    attributes = ['Press', 'Date', 'Title', 'Link', 'Description']
+    writer.writerow(attributes)
+    
+    for i in range(len(newspress)):
+        press = newspress[i].text
+        date = newsdate[i].text
+        title = newstitles[i].text
+        link = newstitles[i].getAttribute('href')
+        des = newsdes[i].text
+        
+        datarows = [press, date, title, link, des]
+        writer.writerow(datarows)
 ```
 
-Server starts at http://0.0.0.0:5001 and browser opens automatically.
+## 3. IMDB Series Data Scraping
 
-### Step 3: Initialize Database (Optional)
+Purpose: Extract episode information from IMDB TV series pages
 
-To batch import existing JSON files into the database:
+### 3.1 URL Structure
 
-```bash
-cd back
-python load_json_to_db.py
+```python
+url = "https://www.imdb.com/title/tt0898266/episodes?ref=tt_eps"
 ```
 
-## Usage
+### 3.2 Episode Extraction
 
-1. Select Date
-   - Use date arrows at top to move to previous/next day
-   - Click date to select from calendar
-
-2. Select Game
-   - Click desired game from list of games on selected date
-
-3. Select Starting Pitchers
-   - Choose starting pitchers for away/home teams from dropdown menus
-
-4. Auto Statistics Lookup
-   - Once both pitchers are selected, 15 category statistics automatically load
-
-5. Data Visualization
-   - Hover over table headers or cells to display comparison chart
-   - Compare away and home team statistics with bar graph
-
-## Data Flow
-
-```
-User Selection (date/game/pitcher)
-       ↓
-Frontend calls 15 APIs simultaneously
-       ↓
-Backend processes by priority
-  ├─ Attempt database lookup
-  ├─ Check JSON files if not found
-  └─ Run scraper to collect if not found
-       ↓
-Auto save to database after scraping
-       ↓
-Return JSON data to frontend
-       ↓
-Parse data and display as table/chart
-```
-
-## API Endpoints
-
-All POST endpoints receive requests in the following format:
-
-```json
-{
-  "selectedDate": "YYYY-MM-DD"
+```python
+hdr = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 }
+
+res = requests.get(url, headers=hdr)
+res.raise_for_status()
+
+soup = BeautifulSoup(res.text, 'lxml')
+
+# Find all episodes
+episodes = soup.find_all('article', attrs={'class': 'sc-64257d69-1 mOJzu episode-item-wrapper'})
+
+for episode in episodes:
+    # Extract title
+    title = episode.find('a', attrs={'class': 'ipc-title-link-wrapper'}).getText()
+    
+    # Extract date
+    dateexist = episode.find('span', attrs={'class': 'sc-5372d523-10 knzESm'})
+    date = dateexist.getText() if dateexist != None else ""
+    
+    # Extract rating and vote count
+    ratingvotecountexist = episode.find('span', attrs={
+        'class': 'ipc-rating-star ipc-rating-star--base ipc-rating-star--imdb ratingGroup--imdb-rating'
+    })
+    
+    if ratingvotecountexist != None:
+        ratingvotecount = ratingvotecountexist.getText()
+        rating = ratingvotecount[0:3]
+        votecount = ratingvotecount[8:11]
+    else:
+        rating = "0"
+        votecount = "0"
+    
+    # Extract description
+    descrexist = episode.find('div', attrs={'class': 'ipc-html-content-inner-div'})
+    descr = descrexist.getText() if descrexist != None else ""
+    
+    print(title, date, rating, votecount, descr)
+    
+    # Save to CSV
+    datarows = [title, date, rating, votecount, descr]
+    writer.writerow(datarows)
 ```
 
-| Endpoint | Description |
-|----------|------------|
-| /scrape-fangraphs | Starting pitcher base stats (statgroup=1) |
-| /scrape-fangraphs-2 | IP, BB/9 and additional pitcher stats |
-| /scrape-fangraphs-3 | RISP batter stats |
-| /scrape-fangraphs-4~6 | High Leverage situation pitcher stats |
-| /scrape-fangraphs-7~9 | Medium Leverage situation pitcher stats |
-| /scrape-fangraphs-10~12 | Low Leverage situation pitcher stats |
-| /scrape-fangraphs-13 | Pitcher fatigue check (2+ games in last 2 days) |
-| /scrape-fangraphs-14 | Team batting stats |
-| /scrape-fangraphs-15 | RISP team batting stats |
-| /load-json-to-db | Batch save all JSON files to database |
+## 4. Naver Map Scraping
 
-## Database Schema
+Purpose: Extract location information from Naver Map search results
 
-fangraphs_data table:
+### 4.1 Setup with Explicit Wait
 
-| Field | Description |
-|-------|------------|
-| id | Primary key |
-| date | Date (YYYY-MM-DD) |
-| file_index | File index (1-15) |
-| rank, season, name, team | Basic information |
-| games, tbf, era, hits, doubles, triples, runs, earned_runs, home_runs, ip, bb_per_9  | Pitcher stats |
-| walks, intentional_walks, hit_by_pitch, strikeouts | Pitcher stats (cont.) |
-| avg, obp, slg, woba | Batter stats |
-| created_at | Data creation time |
+```python
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
 
-## Key Features
+loc = ""
+url = f"https://map.naver.com/v5/search.{loc}"
 
-### Efficient Data Retrieval
-Queries in order (DB → file → scraping) to minimize unnecessary web requests and provide fast response times.
+driver = webdriver.Chrome()
+driver.get(url)
 
-### Automated Data Management
-JSON files from scrapers automatically save to database, maintaining latest data without manual intervention.
+# Wait for element with 10 second timeout
+try:
+    element = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CLASS_NAME, "inputsearch"))
+    )
+finally:
+    pass
 
-### Bot Detection Evasion
-Uses undetected_chromedriver, random wait times, and simulated scroll actions to bypass Cloudflare security.
+driver.implicitly_wait(10)
+```
 
-### RESTful API Design
-15 independent endpoints provide dedicated API for each statistics category with consistent JSON responses.
+### 4.2 Data Collection Loop
 
-### Client-Side Rendering
-Server provides only data; all UI rendering handled on client side for fast user experience.
+```python
+res = pd.DataFrame()
 
-## Notes
+# Switch to search iframe
+driver.switch_to.frame("searchIframe")
 
-- Chrome browser installation required for Selenium
-- Random wait times included during scraping to bypass Cloudflare security
-- Large data collection may take time (initial: 1-2 minutes)
-- Database file (fangraphs_data.db) automatically generated in project directory
+for i in range(10):
+    while True:
+        pagedown(5)
+        
+        # Find all location items
+        lists = driver.findElements(By.CSS_SELECTOR, "li.VLTHu")
+        names = driver.findElements(By.CSS_SELECTOR, ".YwYLL")
+        types = driver.findElements(By.CSS_SELECTOR, ".YzBgS")
+        addrs = driver.findElements(By.CSS_SELECTOR, ".Pb4bU")
+        dist = driver.findElements(By.CSS_SELECTOR, ".NVngW")
+        
+        # Extract data
+        for index in range(len(addrs)):
+            print(names[index].text, types[index].text, 
+                  addrs[index].text, dist[index].text[8:])
+            
+            res = pd.concat([res, pd.DataFrame({
+                'name': [names[index].text],
+                'type': [types[index].text],
+                'address': [addrs[index].text],
+                'distance': [dist[index].text[8:]]
+            })])
+        
+        # Save to CSV
+        res.to_csv('naverMap_locations.csv', index=False, encoding='utf-8-sig')
+        
+        # Find and click next page button
+        e = driver.findElement(By.XPATH, "id('app-root')")
+        b = e.findElements(By.CLASS_NAME, "eUTV2")
+        
+        if b[1].getAttribute('aria-disabled') == 'false':
+            b[1].click()
+            time.sleep(5)
+        else:
+            break
+
+driver.close()
+```
+
+### 4.3 Pagination Handling
+
+The script implements automatic pagination by:
+1. Detecting the "Next" button state using aria-disabled attribute
+2. Clicking next button if available (aria-disabled = false)
+3. Breaking loop when no more pages available (aria-disabled = true)
+
+## 5. Best Practices
+
+Selector Priority:
+1. ID selectors (most specific)
+2. Class selectors
+3. XPath selectors
+4. CSS selectors
+5. Link text selectors
+
+Timing Strategies:
+- Use implicit_wait() for general element loading
+- Use explicit WebDriverWait for critical elements
+- Add time.sleep() between major actions
+- Page down for lazy-loading content
+
+Data Validation:
+- Check for None values before accessing attributes
+- Verify element existence before interaction
+- Handle exceptions for failed element finds
+
+CSV Output Standardization:
+- Use utf-8-sig encoding for Korean characters
+- Set newline='' to prevent blank rows
+- Include proper headers
+- Reset index when concatenating DataFrames
 
 </details>
 
 <details>
 <summary>KOR (한국어 버전)</summary>
 
-# MLB 경기 예측 데이터 수집
+# 웹 스크래핑 및 데이터 수집 기법
 
-Fangraphs에서 실시간 투수/타자 통계를 자동 수집하여 MLB 경기 예측을 분석하는 웹 애플리케이션입니다.
+## 1. 웹 스크래핑 개요
 
-## 프로젝트 개요
+웹 스크래핑은 웹사이트에서 데이터를 추출하고 비정형 웹 데이터를 정형화된 형식으로 변환하는 기법입니다. 다양한 도구와 라이브러리를 사용하여 웹 페이지에서 정보를 자동으로 수집합니다.
 
-웹 스크래핑으로 Fangraphs 통계를 자동 수집하고 SQLite에 저장한 후, 인터랙티브 웹 인터페이스에서 경기 일정과 선수 통계를 비교 분석할 수 있는 플랫폼입니다.
+### 주요 개념
 
-## 주요 기능
+**웹 크롤링 vs. 웹 스크래핑:**
+- 웹 크롤링: 웹사이트의 모든 링크를 체계적으로 방문하고 인덱스를 구축하며 데이터베이스에 저장
+- 웹 스크래핑: 웹 페이지에서 특정 정보를 추출하고 목표 소스에서 데이터 추출에 중점
 
-### 데이터 수집
-- Fangraphs 15개 카테고리 통계 자동 수집
-  - 선발투수 기본 통계, High/Medium/Low Leverage 상황별 분석, 타격 성적
-- Cloudflare 봇 탐지 우회 기술 적용
-- 스크래핑 후 자동으로 데이터베이스 저장
+**인기 있는 도구 및 라이브러리:**
+- Selenium: JavaScript가 많은 웹사이트를 위한 브라우저 자동화
+- BeautifulSoup: 정적 콘텐츠를 위한 HTML/XML 파싱
+- Requests: 웹 페이지를 가져오기 위한 경량 HTTP 라이브러리
+- Scrapy: 완전한 기능의 웹 스크래핑 프레임워크
+- Octoparse, HTTrack, Cytoek WebCopy: GUI 기반 크롤링 도구
 
-### 데이터 관리
-- SQLite 데이터베이스 중앙 집중식 저장
-- 3단계 캐싱 시스템 (DB → 파일 → 스크래핑)으로 불필요한 스크래핑 최소화
-- 날짜별 디렉토리 구조로 체계적 관리
-- 중복 데이터 자동 방지
+## 2. Selenium을 사용한 네이버 뉴스 스크래핑
 
-### 경기 분석
-- 날짜별 MLB 경기 일정 표시
-- 원정팀/홈팀 선발투수 선택 및 통계 조회
-- High/Medium/Low Leverage 상황별 투수 성적 분석
-- 팀별 타격 통계 및 RISP(득점권 타율) 분석
-- 최근 2일 내 2경기 이상 출전한 투수 표시
+목적: 네이버 뉴스 검색 결과에서 뉴스 기사 수집
 
-### 데이터 시각화
-- Chart.js를 활용한 인터랙티브 비교 차트
-- 테이블 헤더/셀 호버 시 자동 차트 표시
-- 원정팀과 홈팀 통계를 막대 그래프로 실시간 비교
+### 2.1 설정 및 의존성
 
-## 기술 스택
-
-| 분류 | 기술 |
-|------|------|
-| Backend | Python 3.12, Flask, SQLite3 |
-| Scraping | Selenium, undetected_chromedriver, BeautifulSoup4 |
-| Frontend | HTML/CSS, JavaScript, Chart.js |
-
-## 프로젝트 구조
-
-```
-Web_Scraping_Project_MLB/
-├── back/                          # 백엔드
-│   ├── app.py                     # Flask 메인 서버
-│   ├── load_json_to_db.py         # DB 데이터 임포트 스크립트
-│   ├── fangraphs_data.db          # SQLite 데이터베이스
-│   └── fangraphs_scraper/         # 15개 스크래퍼
-│       ├── fangraphs_scraper1.py
-│       ├── fangraphs_scraper2.py
-│       └── ...
-│
-└── front/                         # 프론트엔드
-    ├── MLB_Prediction.html        # 메인 페이지
-    ├── MLB_Prediction.css         # 스타일시트
-    ├── MLB_Frontend.js            # 메인 JavaScript 로직
-    ├── MLB_Schedule.js            # 경기 일정 데이터
-    └── MLB_Starters.js            # 팀별 선수 정보
+```python
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
+import csv
 ```
 
-## 설치 및 실행
+### 2.2 주요 함수
 
-### 필수 요구사항
-- Python 3.12
-- Chrome 브라우저 (Selenium WebDriver용)
-
-### 1단계: 저장소 클론 및 패키지 설치
-
-```bash
-git clone https://github.com/LutetiumCalciumLee/Web_Scraping_Project_MLB.git
-cd Web_Scraping_Project_MLB
-pip install flask flask-cors selenium undetected-chromedriver beautifulsoup4
+**페이지 다운 네비게이션:**
+```python
+def pagedown(num, body):
+    driver.findElement(By.CSS_SELECTOR, body).click()
+    for i in range(num):
+        body.sendKeys(Keys.PAGEDOWN)
+        time.sleep(3)
 ```
 
-### 2단계: 백엔드 서버 실행
+### 2.3 메인 스크래핑 워크플로우
 
-```bash
-cd back
-python app.py
+```python
+url = "https://www.naver.com"
+driver = webdriver.Chrome()
+driver.get(url)
+time.sleep(3)
+driver.implicitly_wait(10)
+
+# 검색 상자 찾기 및 쿼리 입력
+searchbox = driver.findElement(By.CSS_SELECTOR, "input[query]")
+searchbox.sendKeys(query)
+searchbox.sendKeys(Keys.RETURN)
+driver.implicitly_wait(10)
+
+# 뉴스 탭 클릭
+driver.findElement(By.LINK_TEXT, "뉴스").click()
+
+# "더보기" 버튼 처리
+while True:
+    btn = driver.findElement(By.LINK_TEXT, "더보기")
+    if btn.isDisplayed():
+        btn.click()
+        driver.implicitly_wait(10)
+        time.sleep(3)
+        break
+    else:
+        driver.findElement(By.LINK_TEXT, "다음 페이지").click()
+
+# 더 많은 콘텐츠 로드를 위해 페이지 다운
+pagedown(100)
+
+# 뉴스 데이터 추출
+newstitles = driver.findElements(By.CSS_SELECTOR, ".fender-ui228e3bd1.SR2LrlI9g02spd3asYd0")
+newspress = driver.findElements(By.CSS_SELECTOR, ".fender-ui228e3bd1.CuEBGQMQA1RcBJH6fbf")
+newsdate = driver.findElements(By.XPATH, "//div[@class='sds-comps-vertical-layout sds-comps-full-layout zc470m0U4oRqtEfZ3YqXd']//div[1]//div[1]//div[2]//span[2]//div//span")
+newsdes = driver.findElements(By.CSS_SELECTOR, ".fender-ui228e3bd1.UCEthQP80sQ2n8CkLMc8")
+
+# CSV에 저장
+with open('파일명.csv', 'w', encoding='utf-8-sig', newline='') as f:
+    writer = csv.writer(f)
+    attributes = ['언론사', '날짜', '제목', '링크', '설명']
+    writer.writerow(attributes)
+    
+    for i in range(len(newspress)):
+        press = newspress[i].text
+        date = newsdate[i].text
+        title = newstitles[i].text
+        link = newstitles[i].getAttribute('href')
+        des = newsdes[i].text
+        
+        datarows = [press, date, title, link, des]
+        writer.writerow(datarows)
 ```
 
-서버는 http://0.0.0.0:5001 에서 시작되며 자동으로 브라우저가 열립니다.
+## 3. IMDB 드라마 데이터 스크래핑
 
-### 3단계: 데이터베이스 초기화 (선택사항)
+목적: IMDB TV 시리즈 페이지에서 에피소드 정보 추출
 
-기존 JSON 파일을 데이터베이스에 일괄 저장하려면:
+### 3.1 URL 구조
 
-```bash
-cd back
-python load_json_to_db.py
+```python
+url = "https://www.imdb.com/title/tt0898266/episodes?ref=tt_eps"
 ```
 
-## 사용 방법
+### 3.2 에피소드 추출
 
-1. 날짜 선택
-   - 화면 상단의 날짜 화살표로 이전/다음 날 이동
-   - 날짜를 클릭하여 캘린더에서 원하는 날짜 선택
-
-2. 경기 선택
-   - 선택한 날짜의 경기 목록에서 원하는 경기 클릭
-
-3. 선발투수 선택
-   - 원정팀/홈팀의 선발투수 드롭다운 메뉴에서 선택
-
-4. 통계 자동 조회
-   - 양 팀 투수가 모두 선택되면 자동으로 15개 카테고리 통계 로드
-
-5. 데이터 시각화
-   - 테이블의 통계 헤더나 셀에 마우스를 올리면 비교 차트 자동 표시
-   - 원정팀과 홈팀의 통계를 막대 그래프로 비교
-
-## 데이터 흐름
-
-```
-사용자 선택 (날짜/경기/투수)
-       ↓
-프론트엔드에서 15개 API 동시 호출
-       ↓
-백엔드 데이터 우선순위 처리
-  ├─ 데이터베이스에서 조회 시도
-  ├─ 없으면 JSON 파일 확인
-  └─ 없으면 스크래퍼 실행하여 수집
-       ↓
-스크래핑 완료 후 자동으로 DB 저장
-       ↓
-JSON 데이터 프론트엔드 반환
-       ↓
-데이터 파싱 및 테이블/차트로 표시
-```
-
-## API 엔드포인트
-
-모든 POST 엔드포인트는 다음 형식의 요청을 받습니다:
-
-```json
-{
-  "selectedDate": "YYYY-MM-DD"
+```python
+hdr = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 }
+
+res = requests.get(url, headers=hdr)
+res.raise_for_status()
+
+soup = BeautifulSoup(res.text, 'lxml')
+
+# 모든 에피소드 찾기
+episodes = soup.find_all('article', attrs={'class': 'sc-64257d69-1 mOJzu episode-item-wrapper'})
+
+for episode in episodes:
+    # 제목 추출
+    title = episode.find('a', attrs={'class': 'ipc-title-link-wrapper'}).getText()
+    
+    # 방영일 추출
+    dateexist = episode.find('span', attrs={'class': 'sc-5372d523-10 knzESm'})
+    date = dateexist.getText() if dateexist != None else ""
+    
+    # 평점 및 투표 수 추출
+    ratingvotecountexist = episode.find('span', attrs={
+        'class': 'ipc-rating-star ipc-rating-star--base ipc-rating-star--imdb ratingGroup--imdb-rating'
+    })
+    
+    if ratingvotecountexist != None:
+        ratingvotecount = ratingvotecountexist.getText()
+        rating = ratingvotecount[0:3]
+        votecount = ratingvotecount[8:11]
+    else:
+        rating = "0"
+        votecount = "0"
+    
+    # 설명 추출
+    descrexist = episode.find('div', attrs={'class': 'ipc-html-content-inner-div'})
+    descr = descrexist.getText() if descrexist != None else ""
+    
+    print(title, date, rating, votecount, descr)
+    
+    # CSV에 저장
+    datarows = [title, date, rating, votecount, descr]
+    writer.writerow(datarows)
 ```
 
-| 엔드포인트 | 설명 |
-|-----------|------|
-| /scrape-fangraphs | 선발투수 기본 통계 (statgroup=1) |
-| /scrape-fangraphs-2 | IP, BB/9 등 추가 투수 통계 |
-| /scrape-fangraphs-3 | RISP 타자 통계 |
-| /scrape-fangraphs-4~6 | High Leverage 상황 투수 통계 |
-| /scrape-fangraphs-7~9 | Medium Leverage 상황 투수 통계 |
-| /scrape-fangraphs-10~12 | Low Leverage 상황 투수 통계 |
-| /scrape-fangraphs-13 | 투수 피로도 체크 (최근 2일 2경기+) |
-| /scrape-fangraphs-14 | 팀 타격 통계 |
-| /scrape-fangraphs-15 | RISP 팀 타격 통계 |
-| /load-json-to-db | 모든 JSON 파일을 DB에 일괄 저장 |
+## 4. 네이버 지도 스크래핑
 
-## 데이터베이스 스키마
+목적: 네이버 지도 검색 결과에서 위치 정보 추출
 
-fangraphs_data 테이블:
+### 4.1 명시적 대기를 사용한 설정
 
-| 필드 | 설명 |
-|------|------|
-| id | 기본 키 |
-| date | 날짜 (YYYY-MM-DD) |
-| file_index | 파일 인덱스 (1-15) |
-| rank, season, name, team | 기본 정보 |
-| games, tbf, era, hits, doubles, triples, runs, earned_runs, home_runs, ip, bb_per_9 | 투수 통계 |
-| walks, intentional_walks, hit_by_pitch, strikeouts | 투수 통계 (계속) |
-| avg, obp, slg, woba | 타자 통계 |
-| created_at | 데이터 생성 시간 |
+```python
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
 
-## 주요 특징
+loc = ""
+url = f"https://map.naver.com/v5/search.{loc}"
 
-### 효율적인 데이터 조회
-DB → 파일 → 스크래핑 순서로 조회하여 불필요한 웹 요청 최소화하고 빠른 응답 속도를 제공합니다.
+driver = webdriver.Chrome()
+driver.get(url)
 
-### 자동화된 데이터 관리
-스크래퍼 실행 후 JSON 파일 생성 시 자동으로 데이터베이스에 저장되어 수동 작업 없이 최신 데이터를 유지합니다.
+# 10초 타임아웃을 사용하여 요소 대기
+try:
+    element = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CLASS_NAME, "inputsearch"))
+    )
+finally:
+    pass
 
-### 봇 탐지 회피
-undetected_chromedriver, 랜덤 대기 시간, 스크롤 동작 시뮬레이션으로 Cloudflare 보안을 우회합니다.
+driver.implicitly_wait(10)
+```
 
-### RESTful API 설계
-15개의 독립적인 엔드포인트로 각 통계 카테고리별 전용 API를 제공하며 일관된 JSON 응답을 반환합니다.
+### 4.2 데이터 수집 루프
 
-### 클라이언트 사이드 렌더링
-서버는 데이터만 제공하고 모든 UI 렌더링을 클라이언트에서 처리하여 빠른 사용자 경험을 제공합니다.
+```python
+res = pd.DataFrame()
 
-## 주의사항
+# 검색 iframe으로 전환
+driver.switch_to.frame("searchIframe")
 
-- Selenium 사용으로 Chrome 브라우저 필수 설치
-- Cloudflare 보안 우회를 위해 스크래핑 시 랜덤 대기 시간 포함
-- 대량의 데이터 수집 시 시간 소요 (초기: 1-2분)
-- 데이터베이스 파일(fangraphs_data.db)은 프로젝트 디렉토리에 자동 생성
+for i in range(10):
+    while True:
+        pagedown(5)
+        
+        # 모든 위치 항목 찾기
+        lists = driver.findElements(By.CSS_SELECTOR, "li.VLTHu")
+        names = driver.findElements(By.CSS_SELECTOR, ".YwYLL")
+        types = driver.findElements(By.CSS_SELECTOR, ".YzBgS")
+        addrs = driver.findElements(By.CSS_SELECTOR, ".Pb4bU")
+        dist = driver.findElements(By.CSS_SELECTOR, ".NVngW")
+        
+        # 데이터 추출
+        for index in range(len(addrs)):
+            print(names[index].text, types[index].text, 
+                  addrs[index].text, dist[index].text[8:])
+            
+            res = pd.concat([res, pd.DataFrame({
+                'name': [names[index].text],
+                'type': [types[index].text],
+                'address': [addrs[index].text],
+                'distance': [dist[index].text[8:]]
+            })])
+        
+        # CSV에 저장
+        res.to_csv('naverMap_locations.csv', index=False, encoding='utf-8-sig')
+        
+        # 다음 페이지 버튼 찾기 및 클릭
+        e = driver.findElement(By.XPATH, "id('app-root')")
+        b = e.findElements(By.CLASS_NAME, "eUTV2")
+        
+        if b[1].getAttribute('aria-disabled') == 'false':
+            b[1].click()
+            time.sleep(5)
+        else:
+            break
+
+driver.close()
+```
+
+### 4.3 페이지네이션 처리
+
+스크립트는 다음을 통해 자동 페이지네이션을 구현합니다:
+1. aria-disabled 속성을 사용하여 "다음" 버튼 상태 감지
+2. 사용 가능한 경우 다음 버튼 클릭 (aria-disabled = false)
+3. 더 이상 페이지가 없을 때 루프 종료 (aria-disabled = true)
+
+## 5. 모범 사례
+
+선택자 우선순위:
+1. ID 선택자 (가장 구체적)
+2. 클래스 선택자
+3. XPath 선택자
+4. CSS 선택자
+5. 링크 텍스트 선택자
+
+타이밍 전략:
+- 일반적인 요소 로드를 위해 implicit_wait() 사용
+- 중요한 요소를 위해 명시적 WebDriverWait 사용
+- 주요 작업 사이에 time.sleep() 추가
+- 레이지 로딩 콘텐츠를 위해 페이지 다운
+
+데이터 유효성 검증:
+- 속성에 접근하기 전에 None 값 확인
+- 상호작용 전에 요소 존재 확인
+- 실패한 요소 찾기에 대한 예외 처리
+
+CSV 출력 표준화:
+- 한글 문자를 위해 utf-8-sig 인코딩 사용
+- 빈 행을 방지하기 위해 newline='' 설정
+- 적절한 헤더 포함
+- DataFrame 연결 시 인덱스 재설정
+
+</details>
