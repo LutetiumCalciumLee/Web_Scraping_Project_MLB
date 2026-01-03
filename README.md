@@ -395,3 +395,5 @@ undetected_chromedriver, 랜덤 대기 시간, 스크롤 동작 시뮬레이션�
 - Cloudflare 보안 우회를 위해 스크래핑 시 랜덤 대기 시간 포함
 - 대량의 데이터 수집 시 시간 소요 (초기: 1-2분)
 - 데이터베이스 파일(fangraphs_data.db)은 프로젝트 디렉토리에 자동 생성
+
+</details>
